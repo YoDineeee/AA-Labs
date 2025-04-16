@@ -2,7 +2,7 @@ import time
 import random
 import matplotlib.pyplot as plt
 
-
+# ---------------------------- Sorting Algorithms ---------------------------- #
 
 def merge_sort(arr):
     if len(arr) <= 1:
@@ -39,7 +39,7 @@ def heapsort(arr):
     n = len(arr)
     for i in range(n // 2 - 1, -1, -1):
         _heapify(arr, n, i)
-    for i in range(n-1, 0, -1):
+    for i in range(n - 1, 0, -1):
         arr[i], arr[0] = arr[0], arr[i]
         _heapify(arr, i, 0)
     return arr
@@ -57,6 +57,8 @@ def _heapify(arr, n, i):
         _heapify(arr, n, largest)
 
 def radix_sort(arr):
+    if not arr:
+        return arr
     max_val = max(arr)
     exp = 1
     while max_val // exp > 0:
@@ -73,7 +75,7 @@ def _counting_sort(arr, exp):
         count[index] += 1
     for i in range(1, 10):
         count[i] += count[i-1]
-    for i in range(n-1, -1, -1):
+    for i in range(n - 1, -1, -1):
         num = arr[i]
         index = (num // exp) % 10
         output[count[index] - 1] = num
@@ -81,16 +83,78 @@ def _counting_sort(arr, exp):
     for i in range(n):
         arr[i] = output[i]
 
-
+# ------------------------- Timing and Data Generation ------------------------ #
 
 def time_sorting_algorithm(algorithm, arr):
     start_time = time.time()
-    algorithm(arr.copy())  
+    algorithm(arr.copy())
     end_time = time.time()
-    return end_time - start_time
+    return (end_time - start_time) * 1000  # Convert to milliseconds
 
-def plot_performance():
-    sizes = [100, 1000, 5000, 10000, 20000]  
+def generate_sorted_array(size):
+    return list(range(size))
+
+def generate_reverse_sorted_array(size):
+    return list(range(size, 0, -1))
+
+def generate_nearly_sorted_array(size, swaps=10):
+    arr = list(range(size))
+    for _ in range(swaps):
+        i = random.randint(0, size - 1)
+        j = random.randint(0, size - 1)
+        arr[i], arr[j] = arr[j], arr[i]
+    return arr
+
+def generate_random_array(size, lower=0, upper=10000):
+    return [random.randint(lower, upper) for _ in range(size)]
+
+# ----------------------- Displaying Results & Plotting ----------------------- #
+
+def print_results_table(results, algorithms, sizes, distributions):
+    alg_names = list(algorithms.keys())
+    header = f"{'Size':<8}| {'Distribution':<15}" + "".join([f"| {name:<12}" for name in alg_names])
+    print(header)
+    print("-" * len(header))
+    
+    for size in sizes:
+        for dist in distributions:
+            row = f"{size:<8}| {dist:<15}"
+            for alg_name in alg_names:
+                time_taken = results[dist][size][alg_name]
+                row += f"| {time_taken:>10.3f} ms"
+            print(row)
+        print()
+
+def plot_results(results, sizes, distributions, algorithms):
+    alg_names = list(algorithms.keys())
+    num_dists = len(distributions)
+    
+    # Create a subplot for each distribution (2 rows x 2 cols layout if 4 distributions)
+    fig, axs = plt.subplots(2, 2, figsize=(15, 10))
+    axs = axs.flatten()
+    
+    for i, dist in enumerate(distributions):
+        ax = axs[i]
+        for alg_name in alg_names:
+            # Gather timings for each size for the current distribution
+            y_values = [results[dist][size][alg_name] for size in sizes]
+            ax.plot(sizes, y_values, marker="o", label=alg_name)
+        ax.set_title(f"{dist} Array")
+        ax.set_xlabel("Input Size (n)")
+        ax.set_ylabel("Time (ms)")
+        ax.grid(True)
+        ax.legend()
+    
+    fig.suptitle("Sorting Algorithm Performance Comparison", fontsize=16)
+    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+    plt.show()
+
+def run_experiments():
+    # Define array sizes and distributions to test
+    sizes = [100, 1000, 5000, 10000]
+    distributions = ["Sorted", "ReverseSorted", "NearlySorted", "Random"]
+    
+    # Define the sorting algorithms to test
     algorithms = {
         "Merge Sort": merge_sort,
         "Quick Sort": quick_sort,
@@ -98,30 +162,27 @@ def plot_performance():
         "Radix Sort": radix_sort
     }
     
-    # Generate a large random array once (to avoid bias)
-    max_size = max(sizes)
-    test_array = [random.randint(0, 10000) for _ in range(max_size)]
+    # Dictionary to hold results: results[distribution][size][algorithm] = time (ms)
+    results = {dist: {sz: {} for sz in sizes} for dist in distributions}
     
-    results = {name: [] for name in algorithms}
-    
+    # Generate arrays and time each algorithm for each array type and size
     for size in sizes:
-        arr = test_array[:size]  # Slice to get subset
-        for name, algorithm in algorithms.items():
-            time_taken = time_sorting_algorithm(algorithm, arr)
-            results[name].append(time_taken)
-            print(f"{name} (n={size}): {time_taken:.4f} sec")
+        sorted_arr = generate_sorted_array(size)
+        reverse_sorted_arr = generate_reverse_sorted_array(size)
+        nearly_sorted_arr = generate_nearly_sorted_array(size)
+        random_arr = generate_random_array(size)
+        
+        for alg_name, alg_func in algorithms.items():
+            results["Sorted"][size][alg_name] = time_sorting_algorithm(alg_func, sorted_arr)
+            results["ReverseSorted"][size][alg_name] = time_sorting_algorithm(alg_func, reverse_sorted_arr)
+            results["NearlySorted"][size][alg_name] = time_sorting_algorithm(alg_func, nearly_sorted_arr)
+            results["Random"][size][alg_name] = time_sorting_algorithm(alg_func, random_arr)
     
-    # Plotting
-    plt.figure(figsize=(10, 6))
-    for name, timings in results.items():
-        plt.plot(sizes, timings, marker='o', label=name)
+    # Print results in a table-like format
+    print_results_table(results, algorithms, sizes, distributions)
     
-    plt.xlabel("Input Size (n)")
-    plt.ylabel("Time (seconds)")
-    plt.title("Sorting Algorithm Performance Comparison")
-    plt.legend()
-    plt.grid(True)
-    plt.show()
+    # Plot the results for visual comparison
+    plot_results(results, sizes, distributions, algorithms)
 
 if __name__ == "__main__":
-    plot_performance()
+    run_experiments()
